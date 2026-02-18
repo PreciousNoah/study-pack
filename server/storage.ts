@@ -92,6 +92,7 @@ export class DatabaseStorage implements IStorage {
         totalFlashcards: packFlashcards.length,
         averageQuizScore: avgScore,
         lastAttempt: attempts[0],
+        quizHistory: attempts.sort((a, b) => new Date(b.attemptedAt).getTime() - new Date(a.attemptedAt).getTime()),
       };
     }
 

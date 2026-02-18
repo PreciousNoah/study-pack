@@ -4,13 +4,13 @@ import { useStudyPack } from "@/hooks/use-study-packs";
 import { LoadingPage } from "@/components/ui/LoadingSpinner";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, BrainCircuit, Sparkles, Download, MessageCircle, BadgeHelp, X, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, BrainCircuit, Sparkles, Download, BadgeHelp, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlashcardViewer } from "@/components/FlashcardViewer";
 import { QuizViewer } from "@/components/QuizViewer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -112,7 +112,6 @@ export default function StudyPackDetails() {
 
   return (
     <div className="min-h-screen bg-muted/20 pb-20">
-      {/* Header */}
       <header className="sticky top-0 z-30 w-full bg-background/80 backdrop-blur-md border-b border-border mb-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-4">
           <Link href="/dashboard">
@@ -132,7 +131,6 @@ export default function StudyPackDetails() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Topics Section */}
         {studyPack.topics && (studyPack.topics as string[]).length > 0 && (
           <div className="mb-8 flex flex-wrap gap-2 justify-center">
             {(studyPack.topics as string[]).map((topic, i) => (
@@ -211,11 +209,15 @@ export default function StudyPackDetails() {
           </TabsContent>
 
           <TabsContent value="flashcards" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <FlashcardViewer cards={studyPack.flashcards} />
+            <FlashcardViewer cards={studyPack.flashcards} studyPackId={studyPack.id} />
           </TabsContent>
 
           <TabsContent value="quiz" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <QuizViewer quizzes={studyPack.quizzes} />
+            <QuizViewer 
+              quizzes={studyPack.quizzes} 
+              studyPackId={studyPack.id}
+              quizHistory={studyPack.progress?.quizHistory || []}
+            />
           </TabsContent>
         </Tabs>
       </main>
