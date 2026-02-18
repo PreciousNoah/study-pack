@@ -20,17 +20,25 @@ export function UploadDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [quizCount, setQuizCount] = useState([5]);
   const [textInput, setTextInput] = useState("");
   const [activeTab, setActiveTab] = useState("file");
+  
   const createStudyPack = useCreateStudyPack();
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const allowedTypes = ["application/pdf", "text/plain"];
+      const allowedTypes = [
+        "application/pdf",
+        "text/plain",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" // .xlsx
+      ];
+      
       if (!allowedTypes.includes(selectedFile.type)) {
         toast({
           title: "Invalid file type",
-          description: "Please upload a PDF or TXT file.",
+          description: "Please upload a PDF, TXT, DOCX, PPTX, or XLSX file.",
           variant: "destructive",
         });
         return;
@@ -109,14 +117,15 @@ export function UploadDialog({ trigger }: { trigger?: React.ReactNode }) {
                       ) : (
                         <>
                           <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="text-sm text-foreground font-medium">Click to upload PDF or TXT</p>
+                          <p className="text-sm text-foreground font-medium">Click to upload</p>
+                          <p className="text-xs text-muted-foreground mt-1">PDF, TXT, DOCX, PPTX, XLSX</p>
                         </>
                       )}
                     </div>
                     <Input 
                       id="file-upload" 
                       type="file" 
-                      accept=".pdf,.txt" 
+                      accept=".pdf,.txt,.docx,.pptx,.xlsx" 
                       className="hidden" 
                       onChange={handleFileChange}
                     />

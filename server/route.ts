@@ -7,6 +7,8 @@ import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import Groq from "groq-sdk";
 import * as pdfParseModule from "pdf-parse";
+import mammoth from "mammoth";
+import ExcelJS from "exceljs";
 
 const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -15,6 +17,60 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }
 });
+
+async function extractTextFromFile(buffer: Buffer, mimetype: string, filename: string): Promise<string> {
+  if (mimetype === "application/pdf") {
+    const pdfData = await pdfParse(buffer);
+    return pdfData.text;
+  }
+  
+  if (mimetype === "text/plain") {
+    return buffer.toString("utf-8");
+  }
+  
+  if (mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value;
+  }
+  
+  if (mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+    const JSZip = require("jszip");
+    const zip = await JSZip.loadAsync(buffer);
+    let text = "";
+    
+    const slideFiles = Object.keys(zip.files).filter(name => name.startsWith("ppt/slides/slide"));
+    for (const slideFile of slideFiles) {
+      const content = await zip.file(slideFile)?.async("string");
+      if (content) {
+        const matches = content.match(/<a:t>(.*?)<\/a:t>/g);
+        if (matches) {
+          matches.forEach(match => {
+            const cleanText = match.replace(/<\/?a:t>/g, "");
+            text += cleanText + " ";
+          });
+        }
+      }
+    }
+    return text;
+  }
+  
+  if (mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    let text = "";
+    
+    workbook.eachSheet((worksheet, sheetId) => {
+      text += `Sheet: ${worksheet.name}\n`;
+      worksheet.eachRow((row, rowNumber) => {
+        const values = row.values as any[];
+        text += values.slice(1).join(" | ") + "\n";
+      });
+    });
+    return text;
+  }
+  
+  throw new Error(`Unsupported file type: ${mimetype}`);
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -33,7 +89,7 @@ export async function registerRoutes(
     const userId = (req.user as any).id;
     const packId = parseInt(req.params.id as string);
     if (isNaN(packId)) return res.status(404).json({ message: "Invalid ID" });
-    const pack = await storage.getStudyPack(packId);
+    const pack = await storage.getStudyPack(packId, userId);
     if (!pack) return res.status(404).json({ message: "Study pack not found" });
     if (pack.userId !== userId) return res.status(401).json({ message: "Unauthorized" });
     res.json(pack);
@@ -59,17 +115,10 @@ export async function registerRoutes(
 
       if (req.file) {
         fileName = req.file.originalname;
-        if (req.file.mimetype === "application/pdf") {
-          try {
-            const pdfData = await pdfParse(req.file.buffer);
-            textContent = pdfData.text;
-          } catch (e: any) {
-            return res.status(500).json({ message: `Failed to parse PDF: ${e.message}` });
-          }
-        } else if (req.file.mimetype === "text/plain") {
-          textContent = req.file.buffer.toString("utf-8");
-        } else {
-          return res.status(400).json({ message: "Unsupported file type" });
+        try {
+          textContent = await extractTextFromFile(req.file.buffer, req.file.mimetype, fileName);
+        } catch (e: any) {
+          return res.status(400).json({ message: e.message });
         }
       } else if (textInput) {
         textContent = textInput;
@@ -146,6 +195,38 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Generation error:", error);
       res.status(500).json({ message: "Failed to generate study pack: " + error.message });
+    }
+  });
+
+  // Progress tracking endpoints
+  app.post("/api/flashcards/progress", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { flashcardId, mastered } = req.body;
+
+      await storage.setFlashcardProgress(userId, flashcardId, mastered);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update progress: " + error.message });
+    }
+  });
+
+  app.post("/api/quiz/attempt", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { studyPackId, score, totalQuestions, correctAnswers } = req.body;
+
+      await storage.saveQuizAttempt({
+        userId,
+        studyPackId,
+        score,
+        totalQuestions,
+        correctAnswers,
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to save quiz attempt: " + error.message });
     }
   });
 
