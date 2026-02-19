@@ -14,6 +14,7 @@ import { useState, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { FlashcardExport } from "@/components/FlashcardExport";
 
 export default function StudyPackDetails() {
   const [match, params] = useRoute("/study-packs/:id");
@@ -29,7 +30,7 @@ export default function StudyPackDetails() {
 
   const handleExport = useCallback(() => {
     if (!studyPack) return;
-
+    
     let content = `STUDY PACK: ${studyPack.title}\n`;
     content += `Original File: ${studyPack.originalFileName}\n`;
     content += `Difficulty: ${studyPack.difficulty}\n\n`;
@@ -45,7 +46,7 @@ export default function StudyPackDetails() {
     studyPack.quizzes.forEach((q: any, i: number) => {
       content += `Q${i+1}: ${q.question}\nOptions: ${q.options.join(", ")}\nCorrect: ${q.correctAnswer}\n\n`;
     });
-
+    
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -123,6 +124,7 @@ export default function StudyPackDetails() {
             <h1 className="text-lg font-semibold truncate">{studyPack.title}</h1>
             <p className="text-xs text-muted-foreground truncate">{studyPack.originalFileName}</p>
           </div>
+          <FlashcardExport cards={studyPack.flashcards} packTitle={studyPack.title} />
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Export Pack</span>

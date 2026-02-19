@@ -6,11 +6,9 @@ import { api } from "@shared/routes";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import Groq from "groq-sdk";
-import * as pdfParseModule from "pdf-parse";
 import mammoth from "mammoth";
 import ExcelJS from "exceljs";
 
-const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const upload = multer({ 
@@ -20,8 +18,16 @@ const upload = multer({
 
 async function extractTextFromFile(buffer: Buffer, mimetype: string, filename: string): Promise<string> {
   if (mimetype === "application/pdf") {
-    const pdfData = await pdfParse(buffer);
-    return pdfData.text;
+    try {
+      // Use dynamic import with proper CommonJS handling
+      const pdfParseModule = await import("pdf-parse");
+      const pdfParse = pdfParseModule.default || pdfParseModule;
+      const pdfData = await (pdfParse as any)(buffer);
+      return pdfData.text;
+    } catch (error: any) {
+      console.error("PDF parsing error:", error);
+      throw new Error(`Failed to parse PDF: ${error.message}`);
+    }
   }
   
   if (mimetype === "text/plain") {
@@ -34,7 +40,7 @@ async function extractTextFromFile(buffer: Buffer, mimetype: string, filename: s
   }
   
   if (mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
-    const JSZip = require("jszip");
+    const JSZip = (await import("jszip")).default;
     const zip = await JSZip.loadAsync(buffer);
     let text = "";
     
@@ -195,6 +201,26 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Generation error:", error);
       res.status(500).json({ message: "Failed to generate study pack: " + error.message });
+    }
+  });
+
+  // Avatar upload endpoint
+  app.post("/api/user/avatar", isAuthenticated, upload.single("avatar"), async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Convert image to base64
+      const avatarBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      
+      // Here you would normally save to a file storage service
+      // For now, we'll just return the base64 (you can store this in the user table)
+      res.json({ avatarUrl: avatarBase64 });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to upload avatar: " + error.message });
     }
   });
 

@@ -40,6 +40,7 @@ export default function Dashboard() {
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const allCategories = useMemo(() => {
     if (!studyPacks) return [];
@@ -80,7 +81,9 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="hidden sm:inline-block">Hello,</span>
-              <span className="font-medium text-foreground">{user.firstName || 'Student'}</span>
+              <Link href="/profile">
+                <span className="font-medium text-foreground hover:text-primary cursor-pointer">{user.firstName || 'Student'}</span>
+              </Link>
             </div>
             <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={() => logout()}>
@@ -124,7 +127,7 @@ export default function Dashboard() {
                 >
                   All
                 </button>
-                {allCategories.map((cat) => (
+                {(showAllCategories ? allCategories : allCategories.slice(0, 5)).map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
@@ -137,6 +140,14 @@ export default function Dashboard() {
                     {cat}
                   </button>
                 ))}
+                {allCategories.length > 5 && (
+                  <button
+                    onClick={() => setShowAllCategories(!showAllCategories)}
+                    className="px-3 py-1 rounded-full text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    {showAllCategories ? '- Show less' : `+ ${allCategories.length - 5} more`}
+                  </button>
+                )}
               </div>
             )}
 
