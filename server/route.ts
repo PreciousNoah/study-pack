@@ -8,7 +8,9 @@ import { registerAuthRoutes } from "./replit_integrations/auth";
 import Groq from "groq-sdk";
 import mammoth from "mammoth";
 import ExcelJS from "exceljs";
+import PDFExtract from 'pdf.js-extract';
 
+const pdfExtract = new (PDFExtract as any).PDFExtract();
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const upload = multer({ 
@@ -17,13 +19,17 @@ const upload = multer({
 });
 
 async function extractTextFromFile(buffer: Buffer, mimetype: string, filename: string): Promise<string> {
-  if (mimetype === "application/pdf") {
+  if (mimetype === "application/pdf" || filename.toLowerCase().endsWith(".pdf")) {
     try {
-      // Use dynamic import with proper CommonJS handling
-      const pdfParseModule = await import("pdf-parse");
-      const pdfParse = pdfParseModule.default || pdfParseModule;
-      const pdfData = await (pdfParse as any)(buffer);
-      return pdfData.text;
+      const data = await pdfExtract.extractBuffer(buffer);
+      const text = data.pages
+        .map((page: any) => page.content.map((item: any) => item.str).join(' '))
+        .join('\n');
+      
+      if (!text || text.trim().length === 0) {
+        throw new Error("PDF contains no extractable text (possibly scanned image).");
+      }
+      return text;
     } catch (error: any) {
       console.error("PDF parsing error:", error);
       throw new Error(`Failed to parse PDF: ${error.message}`);
@@ -204,7 +210,6 @@ export async function registerRoutes(
     }
   });
 
-  // Avatar upload endpoint
   app.post("/api/user/avatar", isAuthenticated, upload.single("avatar"), async (req, res) => {
     try {
       const userId = (req.user as any).id;
@@ -213,18 +218,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Convert image to base64
       const avatarBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-      
-      // Here you would normally save to a file storage service
-      // For now, we'll just return the base64 (you can store this in the user table)
       res.json({ avatarUrl: avatarBase64 });
     } catch (error: any) {
       res.status(500).json({ message: "Failed to upload avatar: " + error.message });
     }
   });
 
-  // Progress tracking endpoints
   app.post("/api/flashcards/progress", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
