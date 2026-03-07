@@ -36,6 +36,20 @@ export const quizzes = pgTable("quizzes", {
   correctAnswer: text("correct_answer").notNull(),
 });
 
+export const shortAnswers = pgTable("short_answers", {
+  id: serial("id").primaryKey(),
+  studyPackId: integer("study_pack_id").notNull().references(() => studyPacks.id, { onDelete: 'cascade' }),
+  question: text("question").notNull(),
+  sampleAnswer: text("sample_answer").notNull(),
+});
+
+export const essayPrompts = pgTable("essay_prompts", {
+  id: serial("id").primaryKey(),
+  studyPackId: integer("study_pack_id").notNull().references(() => studyPacks.id, { onDelete: 'cascade' }),
+  prompt: text("prompt").notNull(),
+  keyPoints: jsonb("key_points").notNull(),
+});
+
 // === PROGRESS TRACKING TABLES ===
 export const flashcardProgress = pgTable("flashcard_progress", {
   id: serial("id").primaryKey(),
@@ -49,7 +63,7 @@ export const quizAttempts = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
   studyPackId: integer("study_pack_id").notNull().references(() => studyPacks.id, { onDelete: 'cascade' }),
-  score: integer("score").notNull(), // percentage 0-100
+  score: integer("score").notNull(),
   totalQuestions: integer("total_questions").notNull(),
   correctAnswers: integer("correct_answers").notNull(),
   attemptedAt: timestamp("attempted_at").defaultNow(),
@@ -59,6 +73,8 @@ export const quizAttempts = pgTable("quiz_attempts", {
 export const insertStudyPackSchema = createInsertSchema(studyPacks).omit({ id: true, createdAt: true });
 export const insertFlashcardSchema = createInsertSchema(flashcards).omit({ id: true });
 export const insertQuizSchema = createInsertSchema(quizzes).omit({ id: true });
+export const insertShortAnswerSchema = createInsertSchema(shortAnswers).omit({ id: true });
+export const insertEssayPromptSchema = createInsertSchema(essayPrompts).omit({ id: true });
 export const insertFlashcardProgressSchema = createInsertSchema(flashcardProgress).omit({ id: true, lastReviewed: true });
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts).omit({ id: true, attemptedAt: true });
 
@@ -69,6 +85,10 @@ export type Flashcard = typeof flashcards.$inferSelect;
 export type InsertFlashcard = z.infer<typeof insertFlashcardSchema>;
 export type Quiz = typeof quizzes.$inferSelect;
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;
+export type ShortAnswer = typeof shortAnswers.$inferSelect;
+export type InsertShortAnswer = z.infer<typeof insertShortAnswerSchema>;
+export type EssayPrompt = typeof essayPrompts.$inferSelect;
+export type InsertEssayPrompt = z.infer<typeof insertEssayPromptSchema>;
 export type FlashcardProgress = typeof flashcardProgress.$inferSelect;
 export type InsertFlashcardProgress = z.infer<typeof insertFlashcardProgressSchema>;
 export type QuizAttempt = typeof quizAttempts.$inferSelect;
@@ -82,16 +102,23 @@ export type FlashcardWithProgress = Flashcard & {
 export type StudyPackWithContent = StudyPack & {
   flashcards: FlashcardWithProgress[];
   quizzes: Quiz[];
+  shortAnswers: ShortAnswer[];
+  essayPrompts: EssayPrompt[];
   progress?: {
     masteredCount: number;
     totalFlashcards: number;
     averageQuizScore: number;
     lastAttempt?: QuizAttempt;
+    quizHistory: QuizAttempt[];
   };
 };
 
 export type GeneratedContent = {
   summary: string;
+  keyConcepts: string[];
+  topics: string[];
   flashcards: { question: string; answer: string }[];
   quizzes: { question: string; options: string[]; correctAnswer: string }[];
+  shortAnswers: { question: string; sampleAnswer: string }[];
+  essayPrompts: { prompt: string; keyPoints: string[] }[];
 };

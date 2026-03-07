@@ -144,23 +144,59 @@ export async function registerRoutes(
       }
 
       const prompt = `
-        You are a study assistant. 
-        From the material below:
-        1. Create a ${summaryLength} length concise summary.
-        2. Generate ${flashcardCount} flashcards (Q&A format).
-        3. Generate ${quizCount} multiple choice practice questions (quizzes) at ${difficulty} difficulty with options and the correct answer.
-        4. Extract 5-8 key topics or keywords.
+        You are an expert exam preparation tutor. Analyze the material below and create comprehensive study materials.
+        
+        IMPORTANT REQUIREMENTS:
+        - Generate EXACTLY ${flashcardCount} flashcards (no more, no less)
+        - Generate EXACTLY ${quizCount} multiple choice questions (no more, no less)
+        - Generate EXACTLY 5 short answer questions
+        - Generate EXACTLY 3 essay prompts
+        
+        From this material, generate:
+        
+        1. KEY CONCEPTS (10-20 bullet points)
+           - Core ideas and principles from the document
+           - Main theories, definitions, and frameworks
+           
+        2. EXAM SUMMARY (${summaryLength} length - be COMPREHENSIVE)
+           - For SHORT: 2-3 detailed paragraphs covering main points
+           - For MEDIUM: 4-6 detailed paragraphs covering all major topics with examples
+           - For LONG: 8-12 detailed paragraphs covering everything in depth with context, examples, and connections
+           - Include ALL important details, examples, statistics, and key information from the material
+           - Organize by themes/sections with clear structure
+           - This should be substantial enough to study from without the original document
+           
+        3. FLASHCARDS (EXACTLY ${flashcardCount} cards)
+           - Optimized for active recall
+           - Focus on definitions, key terms, processes, and relationships
+           - Mix of concept, application, and memory-based questions
+           - Ensure variety across all topics in the material
+           
+        4. LIKELY EXAM QUESTIONS:
+           - Multiple Choice (EXACTLY ${quizCount} MCQs at ${difficulty} difficulty)
+           - Ensure all ${quizCount} questions are high quality and test different concepts
+           - Short Answer prompts (EXACTLY 5 questions requiring 2-3 sentence responses)
+           - Essay prompts (EXACTLY 3 questions requiring detailed analysis)
+        
         Material:
-        ${textContent.slice(0, 15000)}
+        ${textContent.slice(0, 20000)}
+        
         Respond ONLY with a valid JSON object in this exact format, no markdown, no backticks:
         {
+          "keyConcepts": ["concept 1", "concept 2", ...],
           "summary": "...",
-          "topics": ["topic1", "topic2"],
+          "topics": ["topic1", "topic2", ...],
           "flashcards": [
             { "question": "...", "answer": "..." }
           ],
           "quizzes": [
-            { "question": "...", "options": ["Option A", "Option B", "Option C", "Option D"], "correctAnswer": "Option A" }
+            { "question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "A" }
+          ],
+          "shortAnswers": [
+            { "question": "...", "sampleAnswer": "..." }
+          ],
+          "essayPrompts": [
+            { "prompt": "...", "keyPoints": ["point 1", "point 2", ...] }
           ]
         }
       `;
@@ -169,6 +205,7 @@ export async function registerRoutes(
         model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
+        max_tokens: 8000,
       });
 
       const generatedContent = JSON.parse(completion.choices[0].message.content || "{}");
@@ -201,6 +238,22 @@ export async function registerRoutes(
         options: q.options,
         correctAnswer: q.correctAnswer
       })));
+
+      if (generatedContent.shortAnswers && generatedContent.shortAnswers.length > 0) {
+        await storage.createShortAnswers(generatedContent.shortAnswers.map((sa: any) => ({
+          studyPackId: pack.id,
+          question: sa.question,
+          sampleAnswer: sa.sampleAnswer
+        })));
+      }
+
+      if (generatedContent.essayPrompts && generatedContent.essayPrompts.length > 0) {
+        await storage.createEssayPrompts(generatedContent.essayPrompts.map((ep: any) => ({
+          studyPackId: pack.id,
+          prompt: ep.prompt,
+          keyPoints: ep.keyPoints
+        })));
+      }
 
       const fullPack = await storage.getStudyPack(pack.id);
       res.status(201).json(fullPack);

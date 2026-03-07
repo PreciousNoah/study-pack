@@ -2,12 +2,16 @@ import { db } from "./db";
 import { 
   studyPacks, 
   flashcards, 
-  quizzes, 
+  quizzes,
+  shortAnswers,
+  essayPrompts,
   flashcardProgress,
   quizAttempts,
   type InsertStudyPack, 
   type InsertFlashcard, 
   type InsertQuiz,
+  type InsertShortAnswer,
+  type InsertEssayPrompt,
   type InsertFlashcardProgress,
   type InsertQuizAttempt,
   type StudyPack, 
@@ -26,6 +30,8 @@ export interface IStorage {
   // Content
   createFlashcards(cards: InsertFlashcard[]): Promise<void>;
   createQuizzes(quizzes: InsertQuiz[]): Promise<void>;
+  createShortAnswers(answers: InsertShortAnswer[]): Promise<void>;
+  createEssayPrompts(prompts: InsertEssayPrompt[]): Promise<void>;
   
   // Progress Tracking
   setFlashcardProgress(userId: string, flashcardId: number, mastered: boolean): Promise<void>;
@@ -47,6 +53,8 @@ export class DatabaseStorage implements IStorage {
 
     const packFlashcards = await db.select().from(flashcards).where(eq(flashcards.studyPackId, id));
     const packQuizzes = await db.select().from(quizzes).where(eq(quizzes.studyPackId, id));
+    const packShortAnswers = await db.select().from(shortAnswers).where(eq(shortAnswers.studyPackId, id));
+    const packEssayPrompts = await db.select().from(essayPrompts).where(eq(essayPrompts.studyPackId, id));
 
     // If userId provided, fetch progress
     let flashcardsWithProgress = packFlashcards;
@@ -100,6 +108,8 @@ export class DatabaseStorage implements IStorage {
       ...pack,
       flashcards: flashcardsWithProgress,
       quizzes: packQuizzes,
+      shortAnswers: packShortAnswers,
+      essayPrompts: packEssayPrompts,
       progress,
     };
   }
@@ -120,6 +130,16 @@ export class DatabaseStorage implements IStorage {
   async createQuizzes(quizData: InsertQuiz[]): Promise<void> {
     if (quizData.length === 0) return;
     await db.insert(quizzes).values(quizData);
+  }
+
+  async createShortAnswers(answers: InsertShortAnswer[]): Promise<void> {
+    if (answers.length === 0) return;
+    await db.insert(shortAnswers).values(answers);
+  }
+
+  async createEssayPrompts(prompts: InsertEssayPrompt[]): Promise<void> {
+    if (prompts.length === 0) return;
+    await db.insert(essayPrompts).values(prompts);
   }
 
   // Progress tracking
