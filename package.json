@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "build": "tsx script/build.ts",
+    "build:backend": "tsc server/index-production.ts --outDir dist-backend",
+    "start:backend": "node dist-backend/index-production.js",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push"
@@ -49,6 +51,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.6",
     "date-fns": "^3.6.0",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.39.3",
@@ -101,6 +104,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.18",
     "@types/connect-pg-simple": "^7.0.3",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.18.2",
     "@types/node": "20.19.27",
